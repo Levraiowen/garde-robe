@@ -1,0 +1,16 @@
+{
+  "vetements": [
+    {"id": "h1", "nom": "T-shirt blanc", "categorie": "haut", "couleur": "blanc", "styles": ["casual", "minimaliste"], "formalite": 1},
+    {"id": "h2", "nom": "Chemise oxford bleue", "categorie": "haut", "couleur": "bleu", "styles": ["chic", "preppy"], "formalite": 3},
+    {"id": "h3", "nom": "Sweat à capuche gris", "categorie": "haut", "couleur": "gris", "styles": ["streetwear", "casual"], "saisons": ["automne", "hiver", "printemps"], "formalite": 1},
+    {"id": "h4", "nom": "Pull col roulé noir", "categorie": "haut", "couleur": "noir", "styles": ["minimaliste", "chic"], "saisons": ["automne", "hiver"], "formalite": 3},
+    {"id": "b1", "nom": "Jean brut", "categorie": "bas", "couleur": "denim", "styles": ["casual", "streetwear"], "formalite": 2},
+    {"id": "b2", "nom": "Chino beige", "categorie": "bas", "couleur": "beige", "styles": ["preppy", "chic"], "formalite": 3},
+    {"id": "b3", "nom": "Cargo kaki", "categorie": "bas", "couleur": "kaki", "styles": ["streetwear"], "formalite": 1},
+    {"id": "v1", "nom": "Veste en jean", "categorie": "veste", "couleur": "denim", "styles": ["casual"], "saisons": ["printemps", "automne"], "formalite": 2},
+    {"id": "v2", "nom": "Manteau laine camel", "categorie": "veste", "couleur": "camel", "styles": ["chic", "minimaliste"], "saisons": ["automne", "hiver"], "formalite": 4},
+    {"id": "c1", "nom": "Baskets blanches", "categorie": "chaussures", "couleur": "blanc", "styles": ["casual", "minimaliste", "streetwear"], "formalite": 1},
+    {"id": "c2", "nom": "Derbies marron", "categorie": "chaussures", "couleur": "marron", "styles": ["chic", "preppy"], "formalite": 4},
+    {"id": "c3", "nom": "Sneakers rouges", "categorie": "chaussures", "couleur": "rouge", "styles": ["streetwear"], "formalite": 1}
+  ]
+}
