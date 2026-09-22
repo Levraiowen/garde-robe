@@ -51,6 +51,19 @@ def test_diversite(garde_robe):
     assert max(compteur.values()) <= 2
 
 
+def test_pas_de_doublon_avec_ou_sans_veste(garde_robe):
+    tenues = generer_tenues(garde_robe, nombre=50, max_repetitions=50)
+    bases = [frozenset(p.id for p in t.pieces if p.categorie != Categorie.VESTE) for t in tenues]
+    assert len(bases) == len(set(bases))
+
+
+def test_pieces_recentes_penalisees(garde_robe):
+    meilleure = generer_tenues(garde_robe, nombre=1)[0]
+    ids = {p.id for p in meilleure.pieces}
+    apres = generer_tenues(garde_robe, nombre=1, recents=ids)[0]
+    assert {p.id for p in apres.pieces} != ids
+
+
 def test_profil_style(garde_robe):
     profil = profil_style(garde_robe)
     assert abs(sum(p for _, p in profil) - 1) < 0.01

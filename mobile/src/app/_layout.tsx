@@ -1,6 +1,7 @@
 import { SplashScreen, Stack, ThemeProvider } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+import { ToastProvider } from '@/components/toast';
 import { useThemeNavigation } from '@/constants/theme';
 import { SessionProvider, useSession } from '@/lib/session';
 
@@ -10,8 +11,10 @@ export default function Racine() {
   return (
     <ThemeProvider value={useThemeNavigation()}>
       <SessionProvider>
-        <StatusBar style="dark" />
-        <Navigation />
+        <ToastProvider>
+          <StatusBar style="dark" />
+          <Navigation />
+        </ToastProvider>
       </SessionProvider>
     </ThemeProvider>
   );

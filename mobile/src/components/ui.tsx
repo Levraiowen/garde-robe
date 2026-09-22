@@ -1,5 +1,12 @@
 // Composants d'interface réutilisables — style épuré blanc / marron.
-import type { PropsWithChildren, ReactNode } from 'react';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import {
+  useState,
+  type ComponentProps,
+  type PropsWithChildren,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -14,19 +21,29 @@ import {
   type ViewStyle,
 } from 'react-native';
 
-import { Espace, Palette as c, Polices, Rayon } from '@/constants/theme';
+import { Espace, LargeurMax, Palette as c, Polices, Rayon } from '@/constants/theme';
 import { COULEURS } from '@/constants/vetements';
+
+export type NomIcone = ComponentProps<typeof Ionicons>['name'];
 
 // --- Mise en page --------------------------------------------------------------
 
-export function Ecran({ children, style }: PropsWithChildren<{ style?: StyleProp<ViewStyle> }>) {
+/** Écran défilant, centré et limité en largeur sur tablette / web. */
+export function Ecran({
+  children,
+  style,
+  pied,
+}: PropsWithChildren<{ style?: StyleProp<ViewStyle>; pied?: ReactNode }>) {
   return (
-    <ScrollView
-      style={{ backgroundColor: c.fond }}
-      contentContainerStyle={[styles.ecran, style]}
-      keyboardShouldPersistTaps="handled">
-      {children}
-    </ScrollView>
+    <View style={{ flex: 1, backgroundColor: c.fond }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={[styles.ecran, style]}
+        keyboardShouldPersistTaps="handled">
+        {children}
+      </ScrollView>
+      {pied && <View style={styles.pied}>{pied}</View>}
+    </View>
   );
 }
 
@@ -58,9 +75,10 @@ export function Texte({
 export function MessageErreur({ message }: { message: string | null }) {
   if (!message) return null;
   return (
-    <Text role="alert" style={[styles.petit, { color: c.erreur }]}>
-      {message}
-    </Text>
+    <View role="alert" style={styles.erreur}>
+      <Ionicons name="alert-circle-outline" size={18} color={c.erreur} />
+      <Text style={[styles.petit, { color: c.erreur, flex: 1 }]}>{message}</Text>
+    </View>
   );
 }
 
@@ -79,6 +97,7 @@ export function Bouton({
   titre,
   onPress,
   variante = 'primaire',
+  icone,
   chargement = false,
   desactive = false,
   style,
@@ -86,6 +105,7 @@ export function Bouton({
   titre: string;
   onPress: () => void;
   variante?: VarianteBouton;
+  icone?: NomIcone;
   chargement?: boolean;
   desactive?: boolean;
   style?: StyleProp<ViewStyle>;
@@ -110,8 +130,40 @@ export function Bouton({
       {chargement ? (
         <ActivityIndicator color={v.texte} />
       ) : (
-        <Text style={[styles.texteBouton, { color: v.texte }]}>{titre}</Text>
+        <>
+          {icone && <Ionicons name={icone} size={18} color={v.texte} />}
+          <Text style={[styles.texteBouton, { color: v.texte }]}>{titre}</Text>
+        </>
       )}
+    </Pressable>
+  );
+}
+
+/** Bouton rond avec une icône seule (le libellé sert aux lecteurs d'écran). */
+export function BoutonIcone({
+  icone,
+  libelle,
+  onPress,
+  actif = false,
+  taille = 22,
+  couleur = c.texte,
+}: {
+  icone: NomIcone;
+  libelle: string;
+  onPress: () => void;
+  actif?: boolean;
+  taille?: number;
+  couleur?: string;
+}) {
+  return (
+    <Pressable
+      role="button"
+      aria-label={libelle}
+      aria-pressed={actif}
+      hitSlop={8}
+      onPress={onPress}
+      style={({ pressed }) => [styles.boutonIcone, pressed && { backgroundColor: c.surfaceAlt }]}>
+      <Ionicons name={icone} size={taille} color={couleur} />
     </Pressable>
   );
 }
@@ -148,7 +200,24 @@ export function Puce({
   );
 }
 
-export function GroupePuces({ children }: PropsWithChildren) {
+export function GroupePuces({
+  children,
+  defilant = false,
+}: PropsWithChildren<{ defilant?: boolean }>) {
+  if (defilant) {
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={[
+          styles.groupePuces,
+          { flexWrap: 'nowrap', paddingHorizontal: Espace.m },
+        ]}
+        style={{ marginHorizontal: -Espace.m, flexGrow: 0 }}>
+        {children}
+      </ScrollView>
+    );
+  }
   return <View style={styles.groupePuces}>{children}</View>;
 }
 
@@ -163,8 +232,11 @@ export function Onglets<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <View style={styles.barreOnglets}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+    <View style={styles.barreOnglets} role="tablist">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ paddingHorizontal: Espace.s }}>
         {options.map((o) => {
           const actif = o.valeur === valeur;
           return (
@@ -192,24 +264,52 @@ export function Onglets<T extends string>({
 
 // --- Formulaires ---------------------------------------------------------------
 
-export function Champ({ label, ...props }: TextInputProps & { label: string }) {
+export function Champ({
+  label,
+  aide,
+  secret = false,
+  ref,
+  ...props
+}: TextInputProps & { label: string; aide?: string; secret?: boolean; ref?: Ref<TextInput> }) {
+  const [visible, setVisible] = useState(false);
   return (
     <View style={styles.champ}>
       <Texte variante="label">{label}</Texte>
-      <TextInput
-        accessibilityLabel={label}
-        placeholderTextColor={c.texteDoux}
-        style={styles.saisie}
-        {...props}
-      />
+      <View style={styles.saisie}>
+        <TextInput
+          ref={ref}
+          accessibilityLabel={label}
+          placeholderTextColor={c.texteDoux}
+          secureTextEntry={secret && !visible}
+          style={styles.texteSaisie}
+          {...props}
+        />
+        {secret && (
+          <BoutonIcone
+            icone={visible ? 'eye-off-outline' : 'eye-outline'}
+            libelle={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            onPress={() => setVisible(!visible)}
+            taille={20}
+            couleur={c.texteDoux}
+          />
+        )}
+      </View>
+      {aide && <Texte variante="petit">{aide}</Texte>}
     </View>
   );
 }
 
-export function Section({ titre, children }: PropsWithChildren<{ titre: string }>) {
+export function Section({
+  titre,
+  children,
+  action,
+}: PropsWithChildren<{ titre: string; action?: ReactNode }>) {
   return (
     <View style={styles.champ}>
-      <Texte variante="label">{titre}</Texte>
+      <View style={styles.enteteSection}>
+        <Texte variante="label">{titre}</Texte>
+        {action}
+      </View>
       {children}
     </View>
   );
@@ -235,21 +335,42 @@ export function PastilleCouleur({ couleur, taille = 14 }: { couleur: string; tai
 export function EtatVide({
   titre,
   message,
+  icone,
   action,
 }: {
   titre: string;
   message: string;
+  icone?: NomIcone;
   action?: ReactNode;
 }) {
   return (
     <View style={styles.vide}>
+      {icone && (
+        <View style={styles.iconeVide}>
+          <Ionicons name={icone} size={28} color={c.accent} />
+        </View>
+      )}
       <Texte variante="sousTitre" style={{ textAlign: 'center' }}>
         {titre}
       </Texte>
-      <Texte variante="doux" style={{ textAlign: 'center', maxWidth: 300 }}>
+      <Texte variante="doux" style={{ textAlign: 'center', maxWidth: 320 }}>
         {message}
       </Texte>
-      {action && <View style={{ marginTop: Espace.m, alignSelf: 'stretch' }}>{action}</View>}
+      {action && <View style={styles.actionVide}>{action}</View>}
+    </View>
+  );
+}
+
+/** Erreur de chargement plein écran avec bouton « Réessayer ». */
+export function EtatErreur({ message, onReessayer }: { message: string; onReessayer: () => void }) {
+  return (
+    <View style={[styles.vide, { flex: 1, backgroundColor: c.fond }]}>
+      <EtatVide
+        icone="cloud-offline-outline"
+        titre="Oups"
+        message={message}
+        action={<Bouton titre="Réessayer" variante="secondaire" onPress={onReessayer} />}
+      />
     </View>
   );
 }
@@ -263,7 +384,22 @@ export function Chargement() {
 }
 
 const styles = StyleSheet.create({
-  ecran: { padding: Espace.m, gap: Espace.l, flexGrow: 1, backgroundColor: c.fond },
+  ecran: {
+    padding: Espace.m,
+    gap: Espace.l,
+    flexGrow: 1,
+    width: '100%',
+    maxWidth: LargeurMax,
+    alignSelf: 'center',
+    paddingBottom: Espace.xl,
+  },
+  pied: {
+    padding: Espace.m,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: c.bordure,
+    backgroundColor: c.fond,
+    alignItems: 'center',
+  },
   carte: {
     borderRadius: Rayon.m,
     borderWidth: StyleSheet.hairlineWidth,
@@ -291,7 +427,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     color: c.texteDoux,
   },
+  erreur: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Espace.s,
+    padding: Espace.s,
+    borderRadius: Rayon.s,
+    backgroundColor: '#FBEFEC',
+  },
   bouton: {
+    flexDirection: 'row',
+    gap: Espace.s,
     minHeight: 50,
     borderRadius: Rayon.rond,
     paddingHorizontal: Espace.l,
@@ -299,11 +445,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   texteBouton: { fontSize: 15, fontWeight: '600', letterSpacing: 0.3 },
+  boutonIcone: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   puce: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    minHeight: 34,
+    minHeight: 36,
     paddingHorizontal: 14,
     borderRadius: Rayon.rond,
     borderWidth: 1,
@@ -313,6 +466,7 @@ const styles = StyleSheet.create({
   barreOnglets: {
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: c.bordure,
+    backgroundColor: c.fond,
   },
   onglet: {
     paddingHorizontal: Espace.m,
@@ -322,13 +476,31 @@ const styles = StyleSheet.create({
   },
   texteOnglet: { fontSize: 15 },
   champ: { gap: Espace.s },
+  enteteSection: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   saisie: {
+    flexDirection: 'row',
+    alignItems: 'center',
     minHeight: 50,
     borderRadius: Rayon.m,
+    backgroundColor: c.surfaceAlt,
+    paddingRight: Espace.xs,
+  },
+  texteSaisie: {
+    flex: 1,
+    minHeight: 50,
     paddingHorizontal: Espace.m,
     fontSize: 16,
-    backgroundColor: c.surfaceAlt,
     color: c.texte,
   },
   vide: { alignItems: 'center', justifyContent: 'center', gap: Espace.s, padding: Espace.l },
+  iconeVide: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: c.accentDoux,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Espace.s,
+  },
+  actionVide: { marginTop: Espace.m, alignSelf: 'stretch', maxWidth: 360, width: '100%' },
 });

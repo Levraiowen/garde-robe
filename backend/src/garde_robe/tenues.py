@@ -16,6 +16,7 @@ from .models import Categorie, GardeRobe, Saison, Tenue, Vetement
 POIDS_COULEUR = 0.45
 POIDS_STYLE = 0.35
 POIDS_FORMALITE = 0.20
+PENALITE_RECENTE = 0.04  # par pièce portée récemment
 
 
 def _score_style(pieces: list[Vetement]) -> tuple[float, str | None]:
@@ -62,13 +63,16 @@ def generer_tenues(
     formalite: int | None = None,
     nombre: int = 10,
     max_repetitions: int = 3,
+    recents: set[str] | None = None,
 ) -> list[Tenue]:
     """Retourne les `nombre` meilleures tenues possibles.
 
     - `saison` : ne garde que les pièces portables à cette saison.
     - `formalite` : cible (1-5), tolérance de ±1 sur la moyenne de la tenue.
     - `max_repetitions` : nb max d'apparitions d'une même pièce dans le résultat.
+    - `recents` : ids des pièces portées récemment, légèrement pénalisées pour varier.
     """
+    recents = recents or set()
     vestes: list[Vetement | None] = [None, *gr.par_categorie(Categorie.VESTE, saison)]
 
     candidates = []
@@ -78,16 +82,31 @@ def generer_tenues(
             moyenne = sum(p.formalite for p in pieces) / len(pieces)
             if abs(moyenne - formalite) > 1:
                 continue
-        candidates.append(noter(pieces))
+        tenue = noter(pieces)
+        deja_portees = sum(p.id in recents for p in pieces)
+        if deja_portees:
+            tenue.score = round(tenue.score - PENALITE_RECENTE * deja_portees, 3)
+            tenue.raisons.append(
+                "déjà portée récemment"
+                if deja_portees == len(pieces)
+                else f"{deja_portees} pièce(s) portée(s) récemment"
+            )
+        candidates.append(tenue)
 
     candidates.sort(key=lambda t: t.score, reverse=True)
 
     resultat: list[Tenue] = []
     utilisations: Counter[str] = Counter()
+    bases_vues: set[frozenset[str]] = set()
     for tenue in candidates:
+        # Même tenue avec / sans veste : on ne garde que la mieux notée.
+        base = frozenset(p.id for p in tenue.pieces if p.categorie != Categorie.VESTE)
+        if base in bases_vues:
+            continue
         if any(utilisations[p.id] >= max_repetitions for p in tenue.pieces):
             continue
         resultat.append(tenue)
+        bases_vues.add(base)
         utilisations.update(p.id for p in tenue.pieces)
         if len(resultat) >= nombre:
             break

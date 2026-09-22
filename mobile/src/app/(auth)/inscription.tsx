@@ -1,12 +1,14 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { TextInput } from 'react-native';
 
 import { FormulaireAuth } from '@/components/formulaire-auth';
-import { Bouton, Champ, MessageErreur, Texte } from '@/components/ui';
+import { Bouton, Champ, MessageErreur } from '@/components/ui';
 import { messageDe } from '@/lib/hooks';
 import { useSession } from '@/lib/session';
 
 const PSEUDO_VALIDE = /^[a-zA-Z0-9_.-]{3,30}$/;
+const EMAIL_VALIDE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function Inscription() {
   const { inscription } = useSession();
@@ -15,16 +17,17 @@ export default function Inscription() {
   const [motDePasse, setMotDePasse] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
+  const refPseudo = useRef<TextInput>(null);
+  const refMotDePasse = useRef<TextInput>(null);
 
   const valider = async () => {
-    if (!PSEUDO_VALIDE.test(pseudo)) {
-      setErreur('Pseudo : 3 à 30 caractères, lettres, chiffres, « . », « _ » ou « - »');
-      return;
+    if (envoi) return;
+    if (!EMAIL_VALIDE.test(email.trim())) return setErreur('Adresse email invalide.');
+    if (!PSEUDO_VALIDE.test(pseudo.trim())) {
+      return setErreur('Pseudo : 3 à 30 caractères (lettres, chiffres, « . », « _ » ou « - »).');
     }
-    if (motDePasse.length < 8) {
-      setErreur('Le mot de passe doit faire au moins 8 caractères');
-      return;
-    }
+    if (motDePasse.length < 8)
+      return setErreur('Le mot de passe doit faire au moins 8 caractères.');
     setErreur(null);
     setEnvoi(true);
     try {
@@ -44,30 +47,41 @@ export default function Inscription() {
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        autoCorrect={false}
         autoComplete="email"
         keyboardType="email-address"
         textContentType="emailAddress"
         placeholder="toi@exemple.fr"
+        returnKeyType="next"
+        onSubmitEditing={() => refPseudo.current?.focus()}
       />
       <Champ
+        ref={refPseudo}
         label="Pseudo"
+        aide="Visible par les autres quand les fonctions sociales arriveront."
         value={pseudo}
         onChangeText={setPseudo}
         autoCapitalize="none"
+        autoCorrect={false}
         autoComplete="username"
         textContentType="username"
-        placeholder="owen"
+        placeholder="ex. : owen"
+        maxLength={30}
+        returnKeyType="next"
+        onSubmitEditing={() => refMotDePasse.current?.focus()}
       />
       <Champ
+        ref={refMotDePasse}
         label="Mot de passe"
+        aide="8 caractères minimum."
         value={motDePasse}
         onChangeText={setMotDePasse}
-        secureTextEntry
+        secret
         autoComplete="new-password"
         textContentType="newPassword"
+        returnKeyType="go"
         onSubmitEditing={valider}
       />
-      <Texte variante="petit">8 caractères minimum.</Texte>
       <MessageErreur message={erreur} />
       <Bouton
         titre="Créer mon compte"

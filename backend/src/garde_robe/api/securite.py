@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 from argon2 import PasswordHasher
-from argon2.exceptions import VerificationError
+from argon2.exceptions import InvalidHashError, VerificationError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
@@ -16,22 +16,26 @@ from .db import Utilisateur, get_db
 
 _hasher = PasswordHasher()
 _bearer = HTTPBearer(auto_error=False)
+# Hash factice : vérifié quand l'email est inconnu, pour que le temps de réponse
+# ne révèle pas si un compte existe.
+_HASH_FACTICE = _hasher.hash("mot-de-passe-factice")
 
 
 def hasher_mot_de_passe(mot_de_passe: str) -> str:
     return _hasher.hash(mot_de_passe)
 
 
-def verifier_mot_de_passe(mot_de_passe: str, hash_: str) -> bool:
+def verifier_mot_de_passe(mot_de_passe: str, hash_: str | None) -> bool:
     try:
-        return _hasher.verify(hash_, mot_de_passe)
-    except VerificationError:
+        return _hasher.verify(hash_ or _HASH_FACTICE, mot_de_passe) and hash_ is not None
+    except (VerificationError, InvalidHashError):
         return False
 
 
-def creer_token(utilisateur_id: str) -> str:
+def creer_token(utilisateur: Utilisateur) -> str:
     expiration = datetime.now(UTC) + timedelta(days=DUREE_TOKEN_JOURS)
-    return jwt.encode({"sub": utilisateur_id, "exp": expiration}, CLE_SECRETE, ALGORITHME_JWT)
+    payload = {"sub": utilisateur.id, "ver": utilisateur.version_jeton, "exp": expiration}
+    return jwt.encode(payload, CLE_SECRETE, ALGORITHME_JWT)
 
 
 def utilisateur_courant(
@@ -50,6 +54,6 @@ def utilisateur_courant(
     except jwt.PyJWTError:
         raise non_autorise from None
     utilisateur = db.get(Utilisateur, payload.get("sub"))
-    if utilisateur is None:
+    if utilisateur is None or payload.get("ver", 0) != utilisateur.version_jeton:
         raise non_autorise
     return utilisateur

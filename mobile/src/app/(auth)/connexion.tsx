@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { TextInput } from 'react-native';
 
 import { FormulaireAuth } from '@/components/formulaire-auth';
 import { Bouton, Champ, MessageErreur } from '@/components/ui';
@@ -12,8 +13,10 @@ export default function Connexion() {
   const [motDePasse, setMotDePasse] = useState('');
   const [erreur, setErreur] = useState<string | null>(null);
   const [envoi, setEnvoi] = useState(false);
+  const refMotDePasse = useRef<TextInput>(null);
 
   const valider = async () => {
+    if (!email.trim() || !motDePasse || envoi) return;
     setErreur(null);
     setEnvoi(true);
     try {
@@ -34,18 +37,23 @@ export default function Connexion() {
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
+        autoCorrect={false}
         autoComplete="email"
         keyboardType="email-address"
         textContentType="emailAddress"
         placeholder="toi@exemple.fr"
+        returnKeyType="next"
+        onSubmitEditing={() => refMotDePasse.current?.focus()}
       />
       <Champ
+        ref={refMotDePasse}
         label="Mot de passe"
         value={motDePasse}
         onChangeText={setMotDePasse}
-        secureTextEntry
+        secret
         autoComplete="current-password"
         textContentType="password"
+        returnKeyType="go"
         onSubmitEditing={valider}
       />
       <MessageErreur message={erreur} />
@@ -53,7 +61,7 @@ export default function Connexion() {
         titre="Se connecter"
         onPress={valider}
         chargement={envoi}
-        desactive={!email || !motDePasse}
+        desactive={!email.trim() || !motDePasse}
       />
       <Bouton
         titre="Pas encore de compte ? Inscris-toi"

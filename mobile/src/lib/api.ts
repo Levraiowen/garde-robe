@@ -1,8 +1,12 @@
 // Client HTTP de l'API Garde-Robe.
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 import type {
+  Favori,
   PartStyle,
+  PhotoLocale,
+  Port,
   Saison,
   Session,
   Suggestion,
@@ -27,12 +31,23 @@ function detecterUrlApi(): string {
 
 export const URL_API = detecterUrlApi();
 
+/** URL complète d'une photo renvoyée par l'API (/medias/…). */
+export function urlMedia(chemin: string | null): string | null {
+  if (!chemin) return null;
+  return chemin.startsWith('http') ? chemin : `${URL_API}${chemin}`;
+}
+
 export class ErreurApi extends Error {
   constructor(
     message: string,
     public statut: number,
   ) {
     super(message);
+  }
+
+  /** Le serveur n'a pas pu être joint (réseau, serveur éteint…). */
+  get horsLigne() {
+    return this.statut === 0;
   }
 }
 
@@ -45,30 +60,44 @@ export function configurerApi(token: string | null, onNonAutorise: (() => void) 
   surNonAutorise = onNonAutorise;
 }
 
+const LIBELLES_CHAMPS: Record<string, string> = {
+  email: 'Email',
+  pseudo: 'Pseudo',
+  mot_de_passe: 'Mot de passe',
+  nouveau: 'Nouveau mot de passe',
+  nom: 'Nom',
+  couleur: 'Couleur',
+  saisons: 'Saisons',
+};
+
 function messageErreur(corps: unknown, statut: number): string {
   const detail = (corps as { detail?: unknown })?.detail;
   if (typeof detail === 'string') return detail;
   // Erreurs de validation FastAPI : liste de { loc, msg }
   if (Array.isArray(detail) && detail.length > 0) {
-    const champ = detail[0].loc?.at(-1);
-    return champ ? `${champ} : ${detail[0].msg}` : detail[0].msg;
+    const champ = String(detail[0].loc?.at(-1) ?? '');
+    const libelle = LIBELLES_CHAMPS[champ];
+    if (champ === 'email') return 'Adresse email invalide';
+    return libelle ? `${libelle} : valeur invalide` : 'Certaines informations sont invalides';
   }
-  return `Erreur serveur (${statut})`;
+  if (statut >= 500) return 'Le serveur a rencontré un problème, réessaie dans un instant';
+  return `Erreur (${statut})`;
 }
 
 async function requete<T>(chemin: string, options: RequestInit = {}): Promise<T> {
+  const estJson = typeof options.body === 'string';
   let reponse: Response;
   try {
     reponse = await fetch(`${URL_API}${chemin}`, {
       ...options,
       headers: {
-        'Content-Type': 'application/json',
+        ...(estJson ? { 'Content-Type': 'application/json' } : {}),
         ...(jeton ? { Authorization: `Bearer ${jeton}` } : {}),
         ...options.headers,
       },
     });
   } catch {
-    throw new ErreurApi(`Impossible de joindre le serveur (${URL_API})`, 0);
+    throw new ErreurApi('Serveur injoignable. Vérifie ta connexion.', 0);
   }
 
   if (reponse.status === 204) return undefined as T;
@@ -93,12 +122,31 @@ function query(params: Record<string, string | number | undefined>): string {
   return q ? `?${q}` : '';
 }
 
+async function formulairePhoto(photo: PhotoLocale): Promise<FormData> {
+  const form = new FormData();
+  const nom = photo.fileName ?? 'photo.jpg';
+  if (Platform.OS === 'web') {
+    const blob = await (await fetch(photo.uri)).blob();
+    form.append('fichier', blob, nom);
+  } else {
+    // React Native accepte cet objet { uri, name, type } comme fichier
+    form.append('fichier', {
+      uri: photo.uri,
+      name: nom,
+      type: photo.mimeType ?? 'image/jpeg',
+    } as unknown as Blob);
+  }
+  return form;
+}
+
 export const api = {
   inscription: (email: string, pseudo: string, mot_de_passe: string) =>
     requete<Session>('/auth/inscription', json('POST', { email, pseudo, mot_de_passe })),
   connexion: (email: string, mot_de_passe: string) =>
     requete<Session>('/auth/connexion', json('POST', { email, mot_de_passe })),
   moi: () => requete<Utilisateur>('/auth/moi'),
+  changerMotDePasse: (actuel: string, nouveau: string) =>
+    requete<Session>('/auth/mot-de-passe', json('PUT', { actuel, nouveau })),
   supprimerCompte: () => requete<void>('/auth/moi', { method: 'DELETE' }),
 
   vetements: () => requete<Vetement[]>('/vetements'),
@@ -107,9 +155,23 @@ export const api = {
   modifierVetement: (id: string, v: Partial<VetementSaisie>) =>
     requete<Vetement>(`/vetements/${id}`, json('PATCH', v)),
   supprimerVetement: (id: string) => requete<void>(`/vetements/${id}`, { method: 'DELETE' }),
+  envoyerPhoto: async (id: string, photo: PhotoLocale) =>
+    requete<Vetement>(`/vetements/${id}/photo`, {
+      method: 'PUT',
+      body: await formulairePhoto(photo),
+    }),
+  retirerPhoto: (id: string) => requete<Vetement>(`/vetements/${id}/photo`, { method: 'DELETE' }),
 
   tenues: (filtres: { saison?: Saison; formalite?: number; nombre?: number } = {}) =>
     requete<Tenue[]>(`/tenues${query(filtres)}`),
+  favoris: () => requete<Favori[]>('/favoris'),
+  ajouterFavori: (vetement_ids: string[]) =>
+    requete<Favori>('/favoris', json('POST', { vetement_ids })),
+  retirerFavori: (id: string) => requete<void>(`/favoris/${id}`, { method: 'DELETE' }),
+  historique: (limite?: number) => requete<Port[]>(`/portes${query({ limite })}`),
+  porter: (vetement_ids: string[]) => requete<Port>('/portes', json('POST', { vetement_ids })),
+  annulerPort: (id: string) => requete<void>(`/portes/${id}`, { method: 'DELETE' }),
+
   styles: () => requete<PartStyle[]>('/styles'),
   suggestions: () => requete<Suggestion[]>('/suggestions'),
 };

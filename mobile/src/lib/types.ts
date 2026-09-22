@@ -24,20 +24,25 @@ export type VetementSaisie = {
   saisons: Saison[];
   formalite: number;
   marque: string | null;
-  image?: string | null;
 };
 
 export type Vetement = VetementSaisie & {
   id: string;
   image: string | null;
   cree_le: string;
+  nb_ports: number;
+  dernier_port: string | null;
 };
 
 export type Tenue = {
   score: number;
   raisons: string[];
   pieces: Vetement[];
+  favori_id: string | null;
 };
+
+export type Favori = { id: string; cree_le: string; pieces: Vetement[] };
+export type Port = { id: string; porte_le: string; pieces: Vetement[] };
 
 export type PartStyle = { style: string; part: number };
 
@@ -48,3 +53,6 @@ export type Suggestion = {
   raison: string;
   liens: Record<string, string>;
 };
+
+/** Photo choisie sur l'appareil, pas encore envoyée. */
+export type PhotoLocale = { uri: string; mimeType?: string | null; fileName?: string | null };

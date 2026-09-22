@@ -147,3 +147,161 @@ def test_garde_robe_vide(client):
     headers = inscrire(client)
     assert client.get("/tenues", headers=headers).json() == []
     assert client.get("/styles", headers=headers).json() == []
+
+
+def ajouter_tout(client, headers) -> list[str]:
+    return [client.post("/vetements", json=v, headers=headers).json()["id"] for v in VETEMENTS]
+
+
+# --- Validation --------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "maj", [{"nom": None}, {"nom": "   "}, {"couleur": None}, {"saisons": []}, {"formalite": 9}]
+)
+def test_modification_invalide(client, maj):
+    headers = inscrire(client)
+    v = client.post("/vetements", json=VETEMENTS[0], headers=headers).json()
+    assert client.patch(f"/vetements/{v['id']}", json=maj, headers=headers).status_code == 422
+
+
+def test_marque_effacable_et_styles_nettoyes(client):
+    headers = inscrire(client)
+    v = client.post(
+        "/vetements",
+        json={**VETEMENTS[0], "marque": "Zara", "styles": [" Chic", "chic", ""]},
+        headers=headers,
+    ).json()
+    assert v["styles"] == ["chic"]
+    r = client.patch(f"/vetements/{v['id']}", json={"marque": None}, headers=headers)
+    assert r.json()["marque"] is None
+
+
+def test_image_non_modifiable_directement(client):
+    headers = inscrire(client)
+    v = client.post(
+        "/vetements", json={**VETEMENTS[0], "image": "/medias/autre.jpg"}, headers=headers
+    ).json()
+    assert v["image"] is None
+
+
+def test_pseudo_insensible_a_la_casse(client):
+    inscrire(client)
+    r = client.post(
+        "/auth/inscription",
+        json={"email": "x@test.fr", "pseudo": "OWEN", "mot_de_passe": "motdepasse123"},
+    )
+    assert r.status_code == 409
+
+
+# --- Mot de passe ------------------------------------------------------------
+
+
+def test_changement_mot_de_passe(client):
+    ancien = inscrire(client)
+    r = client.put(
+        "/auth/mot-de-passe", json={"actuel": "faux-faux", "nouveau": "nouveau123"}, headers=ancien
+    )
+    assert r.status_code == 400
+
+    r = client.put(
+        "/auth/mot-de-passe",
+        json={"actuel": "motdepasse123", "nouveau": "nouveau123"},
+        headers=ancien,
+    )
+    assert r.status_code == 200
+    nouveau = {"Authorization": f"Bearer {r.json()['token']}"}
+    assert client.get("/auth/moi", headers=ancien).status_code == 401  # autres sessions coupées
+    assert client.get("/auth/moi", headers=nouveau).status_code == 200
+    r = client.post("/auth/connexion", json={"email": "owen@test.fr", "mot_de_passe": "nouveau123"})
+    assert r.status_code == 200
+
+
+# --- Photos ------------------------------------------------------------------
+
+JPEG = b"\xff\xd8\xff\xe0" + b"0" * 100
+
+
+def test_photo(client):
+    from garde_robe.api import config
+
+    headers = inscrire(client)
+    v = client.post("/vetements", json=VETEMENTS[0], headers=headers).json()
+    url = f"/vetements/{v['id']}/photo"
+
+    r = client.put(
+        url, files={"fichier": ("x.jpg", b"pas une image", "image/jpeg")}, headers=headers
+    )
+    assert r.status_code == 415
+
+    r = client.put(url, files={"fichier": ("x.jpg", JPEG, "image/jpeg")}, headers=headers)
+    assert r.status_code == 200
+    image = r.json()["image"]
+    fichier = config.DOSSIER_MEDIAS / image.rsplit("/", 1)[-1]
+    assert image.startswith("/medias/") and fichier.exists()
+
+    # remplacer la photo supprime l'ancienne
+    r = client.put(url, files={"fichier": ("y.jpg", JPEG, "image/jpeg")}, headers=headers)
+    assert not fichier.exists()
+    fichier = config.DOSSIER_MEDIAS / r.json()["image"].rsplit("/", 1)[-1]
+
+    client.delete(f"/vetements/{v['id']}", headers=headers)
+    assert not fichier.exists()
+
+
+def test_photo_d_un_autre(client):
+    owen = inscrire(client)
+    lea = inscrire(client, email="lea@test.fr", pseudo="lea")
+    v = client.post("/vetements", json=VETEMENTS[0], headers=owen).json()
+    r = client.put(
+        f"/vetements/{v['id']}/photo", files={"fichier": ("x.jpg", JPEG, "image/jpeg")}, headers=lea
+    )
+    assert r.status_code == 404
+
+
+# --- Favoris et historique ---------------------------------------------------
+
+
+def test_favoris(client):
+    headers = inscrire(client)
+    ids = ajouter_tout(client, headers)
+
+    r = client.post("/favoris", json={"vetement_ids": ids}, headers=headers)
+    assert r.status_code == 201
+    favori = r.json()
+    # idempotent
+    r = client.post("/favoris", json={"vetement_ids": list(reversed(ids))}, headers=headers)
+    assert r.json()["id"] == favori["id"]
+    assert len(client.get("/favoris", headers=headers).json()) == 1
+    assert client.get("/tenues", headers=headers).json()[0]["favori_id"] == favori["id"]
+
+    # supprimer une pièce retire le favori
+    client.delete(f"/vetements/{ids[0]}", headers=headers)
+    assert client.get("/favoris", headers=headers).json() == []
+
+
+def test_favori_avec_pieces_d_un_autre(client):
+    owen = inscrire(client)
+    lea = inscrire(client, email="lea@test.fr", pseudo="lea")
+    ids = ajouter_tout(client, owen)
+    assert client.post("/favoris", json={"vetement_ids": ids}, headers=lea).status_code == 404
+    r = client.post("/favoris", json={"vetement_ids": [ids[0], ids[0]]}, headers=owen)
+    assert r.status_code == 422
+
+
+def test_historique(client):
+    headers = inscrire(client)
+    ids = ajouter_tout(client, headers)
+
+    r = client.post("/portes", json={"vetement_ids": ids}, headers=headers)
+    assert r.status_code == 201
+    port_id = r.json()["id"]
+
+    vetement = client.get(f"/vetements/{ids[0]}", headers=headers).json()
+    assert vetement["nb_ports"] == 1 and vetement["dernier_port"]
+    raisons = client.get("/tenues", headers=headers).json()[0]["raisons"]
+    assert "déjà portée récemment" in raisons
+
+    assert len(client.get("/portes", headers=headers).json()) == 1
+    assert client.delete(f"/portes/{port_id}", headers=headers).status_code == 204
+    assert client.get("/portes", headers=headers).json() == []

@@ -13,12 +13,14 @@ import { ecrire, lire } from './stockage';
 import type { Utilisateur } from './types';
 
 const CLE_JETON = 'garde-robe.jeton';
+const CLE_UTILISATEUR = 'garde-robe.utilisateur';
 
 type ContexteSession = {
   utilisateur: Utilisateur | null;
   chargement: boolean;
   connexion: (email: string, motDePasse: string) => Promise<void>;
   inscription: (email: string, pseudo: string, motDePasse: string) => Promise<void>;
+  changerMotDePasse: (actuel: string, nouveau: string) => Promise<void>;
   deconnexion: () => Promise<void>;
   supprimerCompte: () => Promise<void>;
 };
@@ -31,6 +33,14 @@ export function useSession(): ContexteSession {
   return valeur;
 }
 
+function lireUtilisateur(brut: string | null): Utilisateur | null {
+  try {
+    return brut ? (JSON.parse(brut) as Utilisateur) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function SessionProvider({ children }: PropsWithChildren) {
   const [utilisateur, setUtilisateur] = useState<Utilisateur | null>(null);
   const [chargement, setChargement] = useState(true);
@@ -38,31 +48,35 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const deconnexion = useCallback(async () => {
     configurerApi(null, null);
     setUtilisateur(null);
-    await ecrire(CLE_JETON, null);
+    await Promise.all([ecrire(CLE_JETON, null), ecrire(CLE_UTILISATEUR, null)]);
   }, []);
 
   const ouvrir = useCallback(
     async (token: string, u: Utilisateur) => {
       configurerApi(token, () => void deconnexion());
-      await ecrire(CLE_JETON, token);
+      await Promise.all([ecrire(CLE_JETON, token), ecrire(CLE_UTILISATEUR, JSON.stringify(u))]);
       setUtilisateur(u);
     },
     [deconnexion],
   );
 
-  // Au démarrage : on reprend le jeton mémorisé et on vérifie qu'il est encore valide.
+  // Au démarrage : on reprend la session mémorisée et on vérifie qu'elle est encore valide.
   useEffect(() => {
     (async () => {
-      const token = await lire(CLE_JETON);
+      const [token, memorise] = await Promise.all([lire(CLE_JETON), lire(CLE_UTILISATEUR)]);
       if (token) {
         configurerApi(token, () => void deconnexion());
         try {
-          setUtilisateur(await api.moi());
+          const u = await api.moi();
+          await ecrire(CLE_UTILISATEUR, JSON.stringify(u));
+          setUtilisateur(u);
         } catch (e) {
-          // Jeton expiré → on oublie la session. Serveur injoignable → idem pour l'instant
-          // (pas de mode hors-ligne) mais on garde le jeton pour le prochain lancement.
-          if (e instanceof ErreurApi && e.statut === 401) await ecrire(CLE_JETON, null);
-          configurerApi(null, null);
+          if (e instanceof ErreurApi && e.horsLigne && lireUtilisateur(memorise)) {
+            // Serveur injoignable : on reste connecté, les écrans proposeront de réessayer.
+            setUtilisateur(lireUtilisateur(memorise));
+          } else {
+            await deconnexion();
+          }
         }
       }
       setChargement(false);
@@ -78,6 +92,10 @@ export function SessionProvider({ children }: PropsWithChildren) {
     },
     inscription: async (email, pseudo, motDePasse) => {
       const s = await api.inscription(email.trim(), pseudo.trim(), motDePasse);
+      await ouvrir(s.token, s.utilisateur);
+    },
+    changerMotDePasse: async (actuel, nouveau) => {
+      const s = await api.changerMotDePasse(actuel, nouveau);
       await ouvrir(s.token, s.utilisateur);
     },
     deconnexion,

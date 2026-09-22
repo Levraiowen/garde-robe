@@ -12,9 +12,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .. import __version__
-from . import routes_auth, routes_garde_robe
+from . import config, routes_auth, routes_tenues, routes_vetements
 from .db import creer_tables
 
 
@@ -35,7 +36,13 @@ app.add_middleware(
 )
 
 app.include_router(routes_auth.router)
-app.include_router(routes_garde_robe.router)
+app.include_router(routes_vetements.router)
+app.include_router(routes_tenues.router)
+
+# Photos des vêtements. Les noms de fichiers sont aléatoires (non devinables) ;
+# à remplacer par un stockage objet avec URLs signées avant une vraie mise en ligne.
+config.DOSSIER_MEDIAS.mkdir(parents=True, exist_ok=True)
+app.mount("/medias", StaticFiles(directory=config.DOSSIER_MEDIAS), name="medias")
 
 
 @app.get("/sante", tags=["système"])

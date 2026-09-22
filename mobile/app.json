@@ -2,7 +2,7 @@
   "expo": {
     "name": "Garde-Robe",
     "slug": "garde-robe",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "garderobe",
@@ -33,7 +33,15 @@
           "imageWidth": 76
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Garde-Robe accède à tes photos pour illustrer tes vêtements.",
+          "cameraPermission": "Garde-Robe utilise l'appareil photo pour photographier tes vêtements.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

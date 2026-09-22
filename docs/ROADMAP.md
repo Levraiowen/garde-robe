@@ -16,14 +16,19 @@
 - [x] Tenues filtrables (saison, occasion), profil de style, suggestions
 - [x] Design épuré blanc / marron
 
-## v0.3 — Garde-robe plus riche
-- [ ] Photos des vêtements (appareil photo / galerie), stockage des images
-- [ ] Détourage automatique + détection de la couleur dominante
-- [ ] Favoris / « j'ai porté cette tenue » (historique), ne pas reproposer une tenue récente
-- [ ] Accessoires dans les tenues
-- [ ] Mot de passe oublié (email), modification du profil
+## v0.3 — Garde-robe plus riche + refonte UX (✅ fait)
+- [x] Photos des vêtements (appareil photo / galerie), stockage des images
+- [x] Favoris, historique « je la porte aujourd'hui », pièces récentes moins proposées
+- [x] Tenue du jour selon la saison, recherche, duplication, « porté N fois »
+- [x] Mon style : palette de couleurs, pièces à redécouvrir
+- [x] Changement de mot de passe (déconnecte les autres appareils)
+- [x] Toasts avec « Annuler », états vides / erreurs avec « Réessayer », session conservée hors ligne
+- [x] Corrections : validation des champs, sécurité de la photo, pseudo insensible à la casse, doublons de tenues
 
 ## v0.4 — Moteur plus intelligent
+- [ ] Détourage automatique + détection de la couleur dominante depuis la photo
+- [ ] Accessoires dans les tenues
+- [ ] Mot de passe oublié (email), modification du pseudo
 - [ ] Météo du jour → saison / couches automatiquement
 - [ ] Apprentissage des préférences (tenues likées / rejetées)
 - [ ] Couleurs plus fines (hex, motifs, matières)

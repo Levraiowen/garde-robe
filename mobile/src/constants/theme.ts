@@ -42,3 +42,5 @@ export const Polices = {
 
 export const Espace = { xs: 4, s: 8, m: 16, l: 24, xl: 32 } as const;
 export const Rayon = { s: 6, m: 12, l: 20, rond: 999 } as const;
+/** Largeur maximale du contenu (tablette / web) pour garder des lignes lisibles. */
+export const LargeurMax = 720;

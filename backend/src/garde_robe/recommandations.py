@@ -15,6 +15,19 @@ from .styles import styles_dominants
 
 CATEGORIES_ESSENTIELLES = [Categorie.HAUT, Categorie.BAS, Categorie.VESTE, Categorie.CHAUSSURES]
 
+MANQUE = {
+    Categorie.HAUT: "Aucun haut",
+    Categorie.BAS: "Aucun bas",
+    Categorie.VESTE: "Aucune veste",
+    Categorie.CHAUSSURES: "Aucune paire de chaussures",
+}
+RECHERCHE = {
+    Categorie.HAUT: "haut",
+    Categorie.BAS: "pantalon",
+    Categorie.VESTE: "veste",
+    Categorie.CHAUSSURES: "chaussures",
+}
+
 MOTEURS = {
     "Google Shopping": "https://www.google.com/search?tbm=shop&q={q}",
     "Vinted": "https://www.vinted.fr/catalog?search_text={q}",
@@ -44,14 +57,14 @@ def suggerer(gr: GardeRobe, nb_styles: int = 3) -> list[Suggestion]:
         for cat in CATEGORIES_ESSENTIELLES:
             if cat in categories_presentes:
                 continue
-            requete = f"{cat.value} style {style}"
+            requete = f"{RECHERCHE[cat]} {style}"
             suggestions.append(
                 Suggestion(
                     style=style,
                     categorie=cat,
                     requete=requete,
                     liens=_liens(requete),
-                    raison=f"Aucun(e) {cat.value} de style « {style} » dans ta garde-robe",
+                    raison=f"{MANQUE[cat]} {style} dans ta garde-robe",
                 )
             )
     return suggestions

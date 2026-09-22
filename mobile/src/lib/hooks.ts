@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, Platform } from 'react-native';
@@ -32,12 +33,19 @@ export function useDonnees<T>(charger: () => Promise<T>) {
     }, [recharger]),
   );
 
-  return { donnees, erreur, chargement, recharger };
+  return { donnees, setDonnees, erreur, chargement, recharger };
 }
 
 export function messageDe(e: unknown): string {
   if (e instanceof ErreurApi) return e.message;
   return 'Une erreur inattendue est survenue';
+}
+
+/** Petite vibration de confirmation (ignorée sur le web). */
+export function vibrer(type: 'succes' | 'leger' = 'leger') {
+  if (Platform.OS === 'web') return;
+  if (type === 'succes') void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  else void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 }
 
 /** Demande de confirmation (Alert natif sur mobile, confirm() sur le web). */

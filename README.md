@@ -14,17 +14,20 @@
 4. **Suggestions** : elle propose des pièces que tu **n'as pas** pour compléter ta garde-robe ou t'inspirer.
 5. *(plus tard)* **Social** : suivre des gens dont tu aimes le style, voir leur garde-robe, liker des tenues.
 
-## Ce qui marche (v0.2)
+## Ce qui marche (v0.3)
 
-| Fonction | Où | État |
-|---|---|---|
-| Comptes : inscription, connexion, session mémorisée, déconnexion, suppression du compte | API + mobile | ✅ |
-| Garde-robe personnelle : ajouter / modifier / supprimer un vêtement | API + mobile | ✅ |
-| Génération de tenues filtrables (saison, occasion) | moteur + mobile | ✅ |
-| Profil de style + suggestions avec liens (Google Shopping, Vinted, Pinterest) | moteur + mobile | ✅ (basique) |
-| Design épuré blanc / marron | mobile | ✅ |
-| Photos des vêtements | — | 🔜 |
-| Fonctions sociales | — | 🔜 (base prête : `profil_public`) |
+| Fonction | État |
+|---|---|
+| **Comptes** : inscription, connexion, session mémorisée (même hors ligne), changement de mot de passe (déconnecte les autres appareils), suppression du compte | ✅ |
+| **Garde-robe** : grille façon catalogue, filtres par catégorie, recherche (nom, marque, couleur, style), ajout / modification / duplication / suppression | ✅ |
+| **Photos** des vêtements (appareil photo ou galerie), avec la couleur en secours | ✅ |
+| **Tenues** : « tenue du jour » selon la saison actuelle, filtres saison / occasion, variété (pas de doublon avec/sans veste) | ✅ |
+| **Favoris** : enregistrer une tenue d'un cœur, la retrouver dans l'onglet Favoris | ✅ |
+| **Historique** : « Je la porte aujourd'hui » (avec Annuler) ; les pièces portées récemment sont moins proposées ; « porté N fois » sur chaque vêtement | ✅ |
+| **Mon style** : style dominant, répartition, palette de couleurs, pièces à redécouvrir, suggestions d'achat (Google Shopping, Vinted, Pinterest) | ✅ |
+| **Profil** : statistiques, dernières tenues portées | ✅ |
+| Design épuré blanc / marron, toasts de confirmation, vibrations, états vides et erreurs avec « Réessayer » | ✅ |
+| Fonctions sociales | 🔜 (base prête : `profil_public`) |
 
 ## Architecture
 
@@ -85,6 +88,7 @@ Tu peux aussi tester dans le navigateur avec `npx expo start --web`.
 | `GARDE_ROBE_SECRET` | clé de dev (avertissement) | Clé de signature des jetons. **À définir en production.** |
 | `GARDE_ROBE_DB` | `sqlite:///./garde_robe.db` | Base de données (SQLAlchemy). |
 | `GARDE_ROBE_TOKEN_JOURS` | `30` | Durée de validité d'une session. |
+| `GARDE_ROBE_MEDIAS` | `./medias` | Dossier des photos des vêtements. |
 
 ## API
 
@@ -92,14 +96,20 @@ Tu peux aussi tester dans le navigateur avec `npx expo start --web`.
 |---|---|---|
 | POST | `/auth/inscription` | Crée un compte, renvoie `{token, utilisateur}` |
 | POST | `/auth/connexion` | Connexion, renvoie `{token, utilisateur}` |
-| GET / DELETE | `/auth/moi` | Profil courant / suppression du compte (et de sa garde-robe) |
-| GET / POST | `/vetements` | Lister / ajouter |
+| GET / DELETE | `/auth/moi` | Profil courant / suppression du compte (garde-robe, photos, historique) |
+| PUT | `/auth/mot-de-passe` | Change le mot de passe, renvoie un nouveau jeton (les autres sessions sont coupées) |
+| GET / POST | `/vetements` | Lister (avec `nb_ports`, `dernier_port`) / ajouter |
 | GET / PATCH / DELETE | `/vetements/{id}` | Détail / modifier / supprimer |
-| GET | `/tenues?saison=&formalite=&nombre=` | Meilleures tenues |
+| PUT / DELETE | `/vetements/{id}/photo` | Envoyer (multipart, JPEG/PNG/WebP, 8 Mo max) / retirer la photo |
+| GET | `/tenues?saison=&formalite=&nombre=` | Meilleures tenues (avec `favori_id`) |
+| GET / POST, DELETE | `/favoris`, `/favoris/{id}` | Tenues favorites |
+| GET / POST, DELETE | `/portes`, `/portes/{id}` | Historique des tenues portées |
 | GET | `/styles` | Profil de style |
 | GET | `/suggestions` | Pièces à ajouter + liens |
 
-Toutes les routes hors `/auth/inscription` et `/auth/connexion` demandent `Authorization: Bearer <token>`. Chaque utilisateur ne voit que sa propre garde-robe.
+Toutes les routes hors `/auth/inscription` et `/auth/connexion` demandent `Authorization: Bearer <token>`. Chaque utilisateur ne voit que ses propres données : un objet d'un autre utilisateur répond 404.
+
+> **Photos :** servies publiquement sous `/medias/<nom aléatoire>`. Le nom n'est pas devinable, mais avant une vraie mise en ligne il faudra passer à un stockage objet avec des liens signés.
 
 ## Comment une tenue est notée
 
@@ -110,7 +120,8 @@ score = 0.45 × couleurs + 0.35 × cohérence de style + 0.20 × formalité
 - **Couleurs** : les neutres (noir, blanc, beige, denim…) vont avec tout ; les couleurs vives sont comparées sur le cercle chromatique.
 - **Style** : part des pièces qui partagent le style le plus représenté.
 - **Formalité** : pénalise les écarts (baskets + costume).
-- **Diversité** : une même pièce n'apparaît pas plus de 3 fois dans les propositions.
+- **Diversité** : une même pièce n'apparaît pas plus de 3 fois dans les propositions, et une même tenue n'est pas proposée deux fois (avec et sans veste).
+- **Historique** : chaque pièce portée dans les 3 derniers jours retire 4 points, pour varier.
 
 ## Qualité
 
