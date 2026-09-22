@@ -13,12 +13,14 @@ venv/
 # Données perso (photos et garde-robe réelle — ne pas versionner)
 data/perso/
 data/photos/
+backend/medias/
 *.db
 *.sqlite
 
 # Secrets
 .env
 .env.*
+!.env.example
 
 # IDE / OS
 .vscode/
