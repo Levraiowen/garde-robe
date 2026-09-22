@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 
 
-class Categorie(str, Enum):
+class Categorie(StrEnum):
     HAUT = "haut"
     BAS = "bas"
     ROBE = "robe"  # pièce unique : remplace haut + bas
@@ -17,7 +17,7 @@ class Categorie(str, Enum):
     ACCESSOIRE = "accessoire"
 
 
-class Saison(str, Enum):
+class Saison(StrEnum):
     PRINTEMPS = "printemps"
     ETE = "ete"
     AUTOMNE = "automne"

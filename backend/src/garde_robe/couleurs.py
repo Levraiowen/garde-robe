@@ -7,8 +7,18 @@ le reste est placé sur un cercle chromatique (teinte en degrés).
 from __future__ import annotations
 
 NEUTRES = {
-    "noir", "blanc", "gris", "beige", "creme", "ecru", "marine",
-    "denim", "camel", "marron", "kaki", "taupe",
+    "noir",
+    "blanc",
+    "gris",
+    "beige",
+    "creme",
+    "ecru",
+    "marine",
+    "denim",
+    "camel",
+    "marron",
+    "kaki",
+    "taupe",
 }
 
 TEINTES = {
@@ -49,9 +59,5 @@ def score_paire(c1: str, c2: str) -> float:
 
 def score_palette(couleurs: list[str]) -> float:
     """Moyenne des scores de toutes les paires de la tenue."""
-    paires = [
-        score_paire(a, b)
-        for i, a in enumerate(couleurs)
-        for b in couleurs[i + 1:]
-    ]
+    paires = [score_paire(a, b) for i, a in enumerate(couleurs) for b in couleurs[i + 1 :]]
     return sum(paires) / len(paires) if paires else 1.0

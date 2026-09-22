@@ -19,6 +19,7 @@ data/photos/
 # Secrets
 .env
 .env.*
+!.env.example
 
 # IDE / OS
 .vscode/
